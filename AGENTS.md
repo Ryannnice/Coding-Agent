@@ -1,40 +1,26 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `packages/opencode`: core CLI/server logic; most integration tests live in `packages/opencode/test`.
-- `packages/app`: Solid + Vite web client; unit tests are mostly `packages/app/src/**/*.test.ts`, e2e tests are in `packages/app/e2e`.
-- `packages/desktop` and `packages/desktop-electron`: desktop clients.
-- `packages/sdk/js`: JavaScript SDK source and build script.
-- `packages/{ui,util,plugin,script,...}`: shared libraries and tooling packages.
-- Root support directories include `script/`, `infra/`, `specs/`, and `sdks/vscode/`.
+This repository is a Bun workspace monorepo. Core CLI, server, and most backend tests live in `packages/opencode` and `packages/opencode/test`. The shared SolidJS app is in `packages/app/src`, with browser end-to-end coverage in `packages/app/e2e`. Reusable UI and helpers live in `packages/ui` and `packages/util`. Desktop shells are in `packages/desktop` and `packages/desktop-electron`; docs, website, and editor SDKs live under `packages/docs`, `packages/web`, and `sdks/vscode`. Repo automation is centered in `script/`, `.github/workflows/`, and `turbo.json`.
 
 ## Build, Test, and Development Commands
-- `bun install` (repo root): install workspace dependencies.
-- `bun dev`: run the core development CLI from `packages/opencode`.
-- `bun dev:web`: run the web app dev server (`packages/app`).
-- `bun dev:desktop`: run the Tauri desktop app.
-- `bun typecheck`: run Turborepo typechecks across workspaces.
-- `bun test` (from `packages/opencode`): run core tests.
-- `bun run test:unit` / `bun run test:e2e` (from `packages/app`): run unit and Playwright tests.
-- Do not run tests from repo root; root `bunfig.toml` intentionally blocks it.
-- Regenerate JavaScript SDK with `./packages/sdk/js/script/build.ts`.
+Use Bun 1.3+ from the repository root.
+
+- `bun install` installs all workspace dependencies.
+- `bun dev` runs the main `opencode` CLI/TUI from `packages/opencode`; pass a target directory with `bun dev .`.
+- `bun dev:web`, `bun dev:desktop`, and `bun dev:console` start the web app, Tauri desktop shell, and console app.
+- `bun typecheck` runs workspace type checks through Turbo.
+- `bun turbo test` runs package tests in the same shape CI uses.
+- `bun --cwd packages/app test:e2e:local` runs Playwright e2e tests.
+- `./script/generate.ts` should be run after API or SDK-facing changes.
+
+Do not use `bun test` at the repo root; it is intentionally disabled.
 
 ## Coding Style & Naming Conventions
-- Use TypeScript with Bun-first APIs where practical (for example, `Bun.file()`).
-- Follow formatting defaults: 2-space indentation, LF, UTF-8, and final newline.
-- Prettier config uses `semi: false`; rely on existing formatting patterns.
-- Prefer `const`, early returns, and minimal reassignment.
-- Keep logic in one function unless extraction clearly improves reuse/composability.
-- Avoid `any`, unnecessary destructuring, and `try/catch` unless required.
-- Prefer short, single-word identifiers where clear (`cfg`, `opts`, `state`).
+Follow `.editorconfig`: UTF-8, LF endings, final newline, and 2-space indentation. Prettier is configured for no semicolons and a 120-column print width. Prefer TypeScript, `const`, precise types, and early returns over `else` branches. Avoid unnecessary destructuring and `any`. Keep new identifiers short but clear, and keep package-specific code, assets, and tests inside the package that owns them.
 
 ## Testing Guidelines
-- Prefer implementation-focused tests over heavy mocking.
-- Place tests in the package you change (`test/**/*.test.ts` or `src/**/*.test.ts`).
-- For UI behavior changes, add or update Playwright specs in `packages/app/e2e`.
+Use Bun for unit tests and Playwright for app e2e. Name unit tests `*.test.ts`; app browser flows use `packages/app/e2e/**/*.spec.ts`. Add or update tests for every behavior change in touched packages. CI runs `bun typecheck`, `bun turbo test`, and app e2e coverage, so match those entrypoints locally before opening a PR.
 
 ## Commit & Pull Request Guidelines
-- Use `dev` as the base branch (local `main` may not exist).
-- Follow conventional commit titles: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:` (scope optional, e.g. `fix(app): ...`).
-- Link an issue in PR descriptions (`Fixes #123` or `Closes #123`).
-- Keep PRs focused; include screenshots/videos for UI changes and verification steps for logic changes.
+Recent history is mostly conventional-commit style: `fix:`, `feat:`, `docs:`, `chore:`, `refactor:`, and `test:`, with optional scopes such as `fix(app): ...`. Open or reference an issue first, then include `Closes #123` in the PR. Keep PRs focused, explain why the change works, summarize local verification, and attach screenshots or recordings for UI changes. Core UI or product features should go through design review before implementation.

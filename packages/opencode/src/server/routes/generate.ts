@@ -57,5 +57,5 @@ export const GenerateRoutes = lazy(() =>
 
         return c.json(await generateProjectFiles(prompt))
       },
-    }),
+    ),
 )

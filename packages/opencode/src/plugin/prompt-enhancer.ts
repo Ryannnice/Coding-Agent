@@ -8,6 +8,7 @@ import { Log } from "@/util/log"
 import { Provider } from "@/provider/provider"
 import { ProviderTransform } from "@/provider/transform"
 import { Session } from "@/session"
+import { SessionID } from "@/session/schema"
 import { DEFAULT_PROJECT_OUTPUT_DIRECTORY, getDefaultProjectOutputDirectory } from "@/session/directory"
 import { Filesystem } from "@/util/filesystem"
 
@@ -409,7 +410,7 @@ export async function PromptEnhancerPlugin(input: PluginInput): Promise<Hooks> {
         const outputDirectory = Filesystem.resolve(enhanced.outputDirectory)
         await mkdir(outputDirectory, { recursive: true })
         await Session.setDirectory({
-          sessionID: _ctx.sessionID,
+          sessionID: SessionID.make(_ctx.sessionID),
           directory: outputDirectory,
         })
       }

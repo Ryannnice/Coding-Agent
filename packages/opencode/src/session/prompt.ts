@@ -365,7 +365,7 @@ export namespace SessionPrompt {
           agent: task.agent,
           variant: lastUser.variant,
           path: {
-            cwd: Instance.directory,
+            cwd: session.directory,
             root: Instance.worktree,
           },
           cost: 0,
@@ -597,7 +597,7 @@ export namespace SessionPrompt {
           agent: agent.name,
           variant: lastUser.variant,
           path: {
-            cwd: Instance.directory,
+            cwd: session.directory,
             root: Instance.worktree,
           },
           cost: 0,
@@ -675,7 +675,7 @@ export namespace SessionPrompt {
       // Build system prompt, adding structured output instruction if needed
       const skills = await SystemPrompt.skills(agent)
       const system = [
-        ...(await SystemPrompt.environment(model)),
+        ...(await SystemPrompt.environment(model, session.directory)),
         ...(skills ? [skills] : []),
         ...(await InstructionPrompt.system()),
       ]
@@ -1605,7 +1605,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
       agent: input.agent,
       cost: 0,
       path: {
-        cwd: Instance.directory,
+        cwd: session.directory,
         root: Instance.worktree,
       },
       time: {
@@ -1695,7 +1695,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
     const matchingInvocation = invocations[shellName] ?? invocations[""]
     const args = matchingInvocation?.args
 
-    const cwd = Instance.directory
+    const cwd = session.directory
     const shellEnv = await Plugin.trigger(
       "shell.env",
       { cwd, sessionID: input.sessionID, callID: part.callID },
@@ -1822,6 +1822,7 @@ NOTE: At any point in time through this workflow you should feel free to ask the
 
   export async function command(input: CommandInput) {
     log.info("command", input)
+    const session = await Session.get(input.sessionID)
     const command = await Command.get(input.command)
     if (!command) {
       const available = await Command.list().then((cmds) => cmds.map((c) => c.name))

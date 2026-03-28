@@ -244,9 +244,10 @@ export namespace Session {
       })
       .optional(),
     async (input) => {
+      const directory = input?.parentID ? (await get(input.parentID)).directory : Instance.directory
       return createNext({
         parentID: input?.parentID,
-        directory: Instance.directory,
+        directory,
         title: input?.title,
         permission: input?.permission,
         workspaceID: input?.workspaceID,
@@ -264,7 +265,7 @@ export namespace Session {
       if (!original) throw new Error("session not found")
       const title = getForkedTitle(original.title)
       const session = await createNext({
-        directory: Instance.directory,
+        directory: original.directory,
         workspaceID: original.workspaceID,
         title,
       })
@@ -411,6 +412,22 @@ export namespace Session {
       SyncEvent.run(Event.Updated, {
         sessionID: input.sessionID,
         info: { permission: input.permission, time: { updated: Date.now() } },
+      })
+    },
+  )
+
+  export const setDirectory = fn(
+    z.object({
+      sessionID: SessionID.zod,
+      directory: z.string(),
+    }),
+    async (input) => {
+      SyncEvent.run(Event.Updated, {
+        sessionID: input.sessionID,
+        info: {
+          directory: input.directory,
+          time: { updated: Date.now() },
+        },
       })
     },
   )

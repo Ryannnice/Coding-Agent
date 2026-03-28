@@ -46,6 +46,7 @@ import { GlobalRoutes } from "./routes/global"
 import { MDNS } from "./mdns"
 import { lazy } from "@/util/lazy"
 import { initProjectors } from "./projectors"
+import { GenerateRoutes } from "./routes/generate"
 
 // @ts-ignore This global is needed to prevent ai-sdk from logging warnings to stdout https://github.com/vercel/ai/blob/2dc67e0ef538307f21368db32d5a12345d98831b/packages/ai/src/logger/log-warnings.ts#L85
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -62,7 +63,7 @@ export namespace Server {
 
   export const createApp = (opts: { cors?: string[] }): Hono => {
     const app = new Hono()
-    return app
+    const base = app
       .onError((err, c) => {
         log.error("failed", {
           error: err,
@@ -134,6 +135,12 @@ export namespace Server {
           },
         }),
       )
+      .route("/", GenerateRoutes())
+    if (Flag.OPENCODE_GENERATE_ONLY) {
+      return base
+    }
+
+    return base
       .route("/global", GlobalRoutes())
       .put(
         "/auth/:providerID",

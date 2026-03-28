@@ -112,6 +112,7 @@ export namespace SessionCompaction {
     auto: boolean
     overflow?: boolean
   }) {
+    const session = await Session.get(input.sessionID)
     const userMessage = input.messages.findLast((m) => m.info.id === input.parentID)!.info as MessageV2.User
 
     let messages = input.messages
@@ -148,7 +149,7 @@ export namespace SessionCompaction {
       variant: userMessage.variant,
       summary: true,
       path: {
-        cwd: Instance.directory,
+        cwd: session.directory,
         root: Instance.worktree,
       },
       cost: 0,

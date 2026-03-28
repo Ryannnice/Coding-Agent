@@ -2,6 +2,7 @@ import yargs from "yargs"
 import { hideBin } from "yargs/helpers"
 import { RunCommand } from "./cli/cmd/run"
 import { GenerateCommand } from "./cli/cmd/generate"
+import { GenerateProjectCommand } from "./cli/cmd/generate-project"
 import { Log } from "./util/log"
 import { ConsoleCommand } from "./cli/cmd/account"
 import { ProvidersCommand } from "./cli/cmd/providers"
@@ -129,6 +130,7 @@ let cli = yargs(hideBin(process.argv))
   .command(AttachCommand)
   .command(RunCommand)
   .command(GenerateCommand)
+  .command(GenerateProjectCommand)
   .command(DebugCommand)
   .command(ConsoleCommand)
   .command(ProvidersCommand)

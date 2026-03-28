@@ -1,0 +1,15 @@
+#!/bin/bash
+set -euo pipefail
+
+WORKSPACE="${WORKSPACE:-/workspace}"
+HOST="${HOST:-0.0.0.0}"
+PORT="${PORT:-9000}"
+
+if [ ! -d "$WORKSPACE" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  WORKSPACE="$(cd "$SCRIPT_DIR/.." && pwd)"
+fi
+
+cd "$WORKSPACE"
+
+echo "No build step required for the FastAPI wrapper."

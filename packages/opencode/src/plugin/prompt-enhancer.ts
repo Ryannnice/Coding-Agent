@@ -131,6 +131,10 @@ function wantsGame(prompt: string) {
   return /(snake|贪吃蛇|game|游戏)/i.test(prompt)
 }
 
+function wantsSnakeGame(prompt: string) {
+  return /(snake|贪吃蛇)/i.test(prompt)
+}
+
 function fallbackFiles(prompt: string, template: ProjectTemplate) {
   if (template === "base-python39") {
     return unique([
@@ -172,6 +176,7 @@ function fallbackFiles(prompt: string, template: ProjectTemplate) {
 export function fallbackPlan(prompt: string, template = inferTemplate(prompt)): EnhancementPlan {
   const request = quote(prompt)
   const game = wantsGame(prompt)
+  const snake = wantsSnakeGame(prompt)
   const vite = template === "base-node18" && wantsVite(prompt)
   const vue = template === "base-node18" && wantsVue(prompt)
 
@@ -188,7 +193,11 @@ export function fallbackPlan(prompt: string, template = inferTemplate(prompt)): 
       "Make practical assumptions without asking follow-up questions",
     ]),
     features: unique([
-      game ? "Provide a playable snake gameplay loop with score and restart behavior" : "",
+      snake
+        ? "Provide a playable snake gameplay loop with score and restart behavior"
+        : game
+          ? "Provide a playable browser game loop with score and restart behavior"
+          : "",
       vite ? "Expose a browser-accessible app that can be previewed on port 9000" : "",
       template === "base-python39" ? "Expose an HTTP health-checkable FastAPI app on port 9000" : "",
       `Deliver the main experience requested by the user: ${request}`,

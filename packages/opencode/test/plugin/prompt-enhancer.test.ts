@@ -112,4 +112,10 @@ describe("plugin.prompt-enhancer", () => {
     expect(result?.system).toContain("requirements.txt")
     expect(result?.system).toContain("uvicorn app:app")
   })
+
+  test("uses generic game guidance for non-snake games", () => {
+    const result = fallbackPlan("生成一个飞机大战游戏")
+    expect(result.features).toContain("Provide a playable browser game loop with score and restart behavior")
+    expect(result.features).not.toContain("Provide a playable snake gameplay loop with score and restart behavior")
+  })
 })

@@ -393,6 +393,7 @@ export async function maybeEnhanceProjectMessage(input: {
   message: InputMessage
   parts: InputPart[]
   directory?: string
+  sessionID?: string
   agentMode?: "all" | "primary" | "subagent"
   mode?: ProjectMode
   planner?: (prompt: string, model: InputMessage["model"]) => Promise<EnhancementPlan>
@@ -412,7 +413,7 @@ export async function maybeEnhanceProjectMessage(input: {
     return fallbackPlan(prompt)
   })
   const plan = mergePlan(prompt, planned)
-  const outputDirectory = input.directory ? getDefaultProjectOutputDirectory(input.directory) : undefined
+  const outputDirectory = input.directory ? getDefaultProjectOutputDirectory(input.directory, input.sessionID) : undefined
   const mode = input.mode ?? resolveProjectMode(input.message.system)
 
   return {
@@ -437,6 +438,7 @@ export async function PromptEnhancerPlugin(input: PluginInput): Promise<Hooks> {
         message: output.message as InputMessage,
         parts: output.parts as InputPart[],
         directory: input.directory,
+        sessionID: _ctx.sessionID,
         agentMode: agent?.mode,
       })
 

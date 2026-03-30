@@ -1,13 +1,14 @@
 import { describe, expect, test } from "bun:test"
 import fs from "fs/promises"
 import path from "path"
+import { getDefaultProjectOutputDirectory } from "../../src/session/directory"
 import { collectGeneratedProjectFiles } from "../../src/server/generate-project"
 import { tmpdir } from "../fixture/fixture"
 
 describe("server.generate-project", () => {
   test("collects project files and ignores generated artifact directories", async () => {
     await using tmp = await tmpdir()
-    const root = path.join(tmp.path, "TEST")
+    const root = getDefaultProjectOutputDirectory(tmp.path)
     await fs.mkdir(path.join(root, "src"), { recursive: true })
     await fs.mkdir(path.join(root, "node_modules", "leftpad"), { recursive: true })
     await fs.mkdir(path.join(root, "dist"), { recursive: true })
@@ -27,7 +28,7 @@ describe("server.generate-project", () => {
 
   test("keeps project directories that are part of source, not build artifacts", async () => {
     await using tmp = await tmpdir()
-    const root = path.join(tmp.path, "TEST")
+    const root = getDefaultProjectOutputDirectory(tmp.path)
     await fs.mkdir(path.join(root, "build"), { recursive: true })
     await fs.writeFile(path.join(root, "build", "config.js"), 'export default "ok"\n', "utf-8")
 
@@ -38,7 +39,7 @@ describe("server.generate-project", () => {
 
   test("rejects binary files in the generated project", async () => {
     await using tmp = await tmpdir()
-    const root = path.join(tmp.path, "TEST")
+    const root = getDefaultProjectOutputDirectory(tmp.path)
     await fs.mkdir(root, { recursive: true })
     await fs.writeFile(path.join(root, "image.bin"), Buffer.from([0x00, 0x01, 0x02]))
 

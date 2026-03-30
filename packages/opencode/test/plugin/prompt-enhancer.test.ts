@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { getDefaultProjectOutputDirectory } from "../../src/session/directory"
 import {
   PROMPT_ENHANCER_MARKER,
   PROJECT_ONLINE_RUN_MARKER,
@@ -44,6 +45,7 @@ describe("plugin.prompt-enhancer", () => {
         },
       ],
       directory: "/tmp/project",
+      sessionID: "session_123",
       agentMode: "primary",
       planner: async () => ({
         template: "base-node18",
@@ -58,13 +60,13 @@ describe("plugin.prompt-enhancer", () => {
     })
 
     expect(result?.enhanced).toBe(true)
-    expect(result?.outputDirectory).toBe("/tmp/project/TEST")
+    expect(result?.outputDirectory).toBe(getDefaultProjectOutputDirectory("/tmp/project", "session_123"))
     expect(result?.system).toContain("existing system note")
     expect(result?.system).toContain(PROMPT_ENHANCER_MARKER)
     expect(result?.system).toContain("Selected template: base-node18")
     expect(result?.system).toContain("Original request: 生成贪吃蛇游戏")
     expect(result?.system).toContain("scripts/start.sh")
-    expect(result?.system).toContain("fixed project root: /tmp/project/TEST")
+    expect(result?.system).toContain(`fixed project root: ${getDefaultProjectOutputDirectory("/tmp/project", "session_123")}`)
   })
 
   test("skips enhancement for subagent prompts", async () => {
@@ -137,6 +139,7 @@ describe("plugin.prompt-enhancer", () => {
         },
       ],
       directory: "/tmp/project",
+      sessionID: "session_456",
       agentMode: "primary",
       planner: async () => fallbackPlan("创建一个 Vue 单页应用"),
     })

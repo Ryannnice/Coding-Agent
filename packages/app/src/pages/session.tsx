@@ -49,6 +49,7 @@ import {
   shouldFocusTerminalOnKeyDown,
 } from "@/pages/session/helpers"
 import { MessageTimeline } from "@/pages/session/message-timeline"
+import { projectPathChain, shouldEnterProjectDirectory } from "@/pages/session/project-mode"
 import { type DiffStyle, SessionReviewTab, type SessionReviewTabProps } from "@/pages/session/review-tab"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { syncSessionModel } from "@/pages/session/session-model-helpers"
@@ -426,6 +427,30 @@ export default function Page() {
   }
 
   const info = createMemo(() => (params.id ? sync.session.get(params.id) : undefined))
+  createEffect(
+    on(
+      () => [params.id, info()?.directory, sync.data.session_status[params.id ?? ""]?.type] as const,
+      ([id, directory, status]) => {
+        if (!id || !directory) return
+        if (directory === sdk.directory) return
+
+        layout.fileTree.setTab("all")
+        if (isDesktop()) layout.fileTree.open()
+
+        const busy = status !== "idle"
+        if (!shouldEnterProjectDirectory(sdk.directory, directory, busy)) {
+          for (const item of projectPathChain(sdk.directory, directory)) {
+            file.tree.expand(item)
+          }
+          return
+        }
+
+        globalSync.child(directory)
+        navigate(`/${base64Encode(directory)}/session/${id}`, { replace: true })
+      },
+      { defer: true },
+    ),
+  )
   const diffs = createMemo(() => (params.id ? (sync.data.session_diff[params.id] ?? []) : []))
   const sessionCount = createMemo(() => Math.max(info()?.summary?.files ?? 0, diffs().length))
   const hasSessionReview = createMemo(() => sessionCount() > 0)

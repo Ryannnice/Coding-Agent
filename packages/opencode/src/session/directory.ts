@@ -4,10 +4,18 @@ import { Filesystem } from "@/util/filesystem"
 import { Session } from "."
 import type { SessionID } from "./schema"
 
-export const DEFAULT_PROJECT_OUTPUT_DIRECTORY = "TEST"
+export const DEFAULT_PROJECT_OUTPUT_DIRECTORY = ".opencode/generated"
 
-export function getDefaultProjectOutputDirectory(directory: string) {
-  return Filesystem.resolve(path.join(directory, DEFAULT_PROJECT_OUTPUT_DIRECTORY))
+function sanitizeProjectOutputName(input: string) {
+  const value = input.trim().replaceAll("\\", "-").replaceAll("/", "-")
+  const safe = value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "")
+  return safe || "project"
+}
+
+export function getDefaultProjectOutputDirectory(directory: string, suffix?: string) {
+  const root = path.join(directory, DEFAULT_PROJECT_OUTPUT_DIRECTORY)
+  if (!suffix) return Filesystem.resolve(path.join(root, "project"))
+  return Filesystem.resolve(path.join(root, sanitizeProjectOutputName(suffix)))
 }
 
 function sanitizeRelativeTarget(target: string) {

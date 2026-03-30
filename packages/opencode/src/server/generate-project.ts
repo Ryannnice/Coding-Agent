@@ -5,7 +5,7 @@ import { inferTemplate } from "@/plugin/prompt-enhancer"
 import { Instance } from "@/project/instance"
 import { InstanceBootstrap } from "@/project/bootstrap"
 import { Permission } from "@/permission"
-import { DEFAULT_PROJECT_OUTPUT_DIRECTORY } from "@/session/directory"
+import { getDefaultProjectOutputDirectory } from "@/session/directory"
 import { Session } from "@/session"
 import { MessageV2 } from "@/session/message-v2"
 import { SessionPrompt } from "@/session/prompt"
@@ -199,7 +199,7 @@ export async function generateProjectFiles(prompt: string) {
   const normalizedPrompt = prompt.trim()
   const template = inferTemplate(normalizedPrompt)
   const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-generate-"))
-  const expectedRoot = Filesystem.resolve(path.join(workspaceRoot, DEFAULT_PROJECT_OUTPUT_DIRECTORY))
+  const expectedRoot = getDefaultProjectOutputDirectory(workspaceRoot)
 
   try {
     return await Instance.provide({

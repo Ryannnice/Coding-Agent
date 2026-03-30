@@ -329,8 +329,26 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
       entries: [],
     }),
   )
+  const [prefs, setPrefs] = persisted(
+    Persist.workspace(sdk.directory, "project-mode", ["project-mode.v1"]),
+    createStore({
+      online: false,
+    }),
+  )
 
   const suggest = createMemo(() => !hasUserPrompt())
+  const onlineText = createMemo(() => {
+    const locale = language.locale()
+    if (locale === "zh") return "在线构建运行"
+    if (locale === "zht") return "在線建置執行"
+    return "Run Online"
+  })
+  const onlineTip = createMemo(() => {
+    const locale = language.locale()
+    if (locale === "zh") return "在线构建并在线运行模式"
+    if (locale === "zht") return "在線建置並在線執行模式"
+    return "Online build and run mode"
+  })
 
   const placeholder = createMemo(() =>
     promptPlaceholder({
@@ -1091,6 +1109,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
     setMode: (mode) => setStore("mode", mode),
     setPopover: (popover) => setStore("popover", popover),
     newSessionWorktree: () => props.newSessionWorktree,
+    projectMode: () => (prefs.online ? "online" : "default"),
     onNewSessionWorktreeReset: props.onNewSessionWorktreeReset,
     shouldQueue: props.shouldQueue,
     onQueue: props.onQueue,
@@ -1564,6 +1583,25 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
                     />
                   </TooltipKeybind>
                 </div>
+                <Show when={!params.id}>
+                  <Tooltip placement="top" gutter={8} value={onlineTip()}>
+                    <Button
+                      data-action="prompt-project-mode"
+                      variant="ghost"
+                      size="normal"
+                      onClick={() => setPrefs("online", (value) => !value)}
+                      classList={{
+                        "min-w-0 max-w-[140px] text-13-regular text-text-base": true,
+                        "bg-surface-info-base hover:bg-surface-info-base": prefs.online,
+                      }}
+                      style={control()}
+                      aria-label={onlineTip()}
+                      aria-pressed={prefs.online}
+                    >
+                      <span class="truncate">{onlineText()}</span>
+                    </Button>
+                  </Tooltip>
+                </Show>
                 <TooltipKeybind
                   placement="top"
                   gutter={8}

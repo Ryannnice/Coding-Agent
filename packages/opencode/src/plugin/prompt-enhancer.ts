@@ -1,4 +1,10 @@
 import type { Hooks, PluginInput } from "@opencode-ai/plugin"
+import {
+  PROJECT_ONLINE_RUN_MARKER,
+  resolveProjectMode,
+  withProjectMode,
+  type ProjectMode,
+} from "@opencode-ai/util/project-mode"
 import { mkdir } from "fs/promises"
 import { generateObject, streamObject } from "ai"
 import z from "zod"
@@ -15,6 +21,8 @@ import { Filesystem } from "@/util/filesystem"
 const log = Log.create({ service: "plugin.prompt-enhancer" })
 
 export const PROMPT_ENHANCER_MARKER = "<project-prompt-enhancer-v1>"
+export { PROJECT_ONLINE_RUN_MARKER, resolveProjectMode, withProjectMode }
+export type { ProjectMode }
 
 export const ProjectTemplateSchema = z.enum(["base-node18", "base-python39"])
 export type ProjectTemplate = z.infer<typeof ProjectTemplateSchema>
@@ -240,6 +248,7 @@ export function renderEnhancementSystem(input: {
   plan: EnhancementPlan
   directory?: string
   outputDirectory?: string
+  mode?: ProjectMode
 }) {
   const node18Rules = [
     "- Runtime is fixed to Node.js 18. Do not pick packages that require Node.js 20+.",
@@ -273,6 +282,14 @@ export function renderEnhancementSystem(input: {
     "- Prefer src/main.js or src/main.ts as the entry.",
     "- If vite.config.js or vite.config.ts exists, set server.host to 0.0.0.0, server.port to 9000, server.strictPort to true, server.allowedHosts to true, preview.host to 0.0.0.0, preview.port to 9000, and preview.allowedHosts to true.",
     "- Prefer standard vite build plus vite preview. Avoid complex SSR/client mixed dist output.",
+  ]
+
+  const onlineRules = [
+    "- Online build and run mode is enabled. The project must be ready for automated prepare/build/start execution without manual cleanup.",
+    "- Prefer including scripts/dev.sh so the project can also be iterated on in a live online workspace.",
+    "- Keep startup deterministic. Do not require interactive prompts, GUI apps, login flows, tunnel setup, or manual confirmations to boot the app.",
+    "- Prefer self-contained static apps or single-process HTTP services that bind to HOST and PORT.",
+    "- Avoid hidden environment assumptions beyond WORKSPACE, HOST, and PORT unless the user explicitly asks for them.",
   ]
 
   const rules = [
@@ -314,6 +331,9 @@ export function renderEnhancementSystem(input: {
     "- Make reasonable assumptions and do not ask follow-up questions before building.",
     ...(input.plan.template === "base-python39" ? pythonRules : node18Rules),
     "",
+    input.mode === "online" ? "Online Build And Run rules:" : "",
+    ...(input.mode === "online" ? onlineRules : []),
+    ...(input.mode === "online" ? [""] : []),
     "Conditional Vite / Vue rules:",
     ...viteVueRules,
   ]
@@ -374,6 +394,7 @@ export async function maybeEnhanceProjectMessage(input: {
   parts: InputPart[]
   directory?: string
   agentMode?: "all" | "primary" | "subagent"
+  mode?: ProjectMode
   planner?: (prompt: string, model: InputMessage["model"]) => Promise<EnhancementPlan>
 }) {
   if (input.agentMode === "subagent") return
@@ -392,12 +413,17 @@ export async function maybeEnhanceProjectMessage(input: {
   })
   const plan = mergePlan(prompt, planned)
   const outputDirectory = input.directory ? getDefaultProjectOutputDirectory(input.directory) : undefined
+  const mode = input.mode ?? resolveProjectMode(input.message.system)
 
   return {
     enhanced: true as const,
     plan,
+    mode,
     outputDirectory,
-    system: [input.message.system, renderEnhancementSystem({ prompt, plan, directory: input.directory, outputDirectory })]
+    system: [
+      withProjectMode(input.message.system, mode),
+      renderEnhancementSystem({ prompt, plan, directory: input.directory, outputDirectory, mode }),
+    ]
       .filter(Boolean)
       .join("\n\n"),
   }

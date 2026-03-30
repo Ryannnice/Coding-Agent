@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test"
 import {
   PROMPT_ENHANCER_MARKER,
+  PROJECT_ONLINE_RUN_MARKER,
   fallbackPlan,
   inferTemplate,
   isProjectGenerationIntent,
   maybeEnhanceProjectMessage,
+  resolveProjectMode,
+  withProjectMode,
 } from "../../src/plugin/prompt-enhancer"
 
 describe("plugin.prompt-enhancer", () => {
@@ -111,6 +114,37 @@ describe("plugin.prompt-enhancer", () => {
     expect(result?.system).toContain("Selected template: base-python39")
     expect(result?.system).toContain("requirements.txt")
     expect(result?.system).toContain("uvicorn app:app")
+  })
+
+  test("supports online build and run mode markers", async () => {
+    expect(resolveProjectMode(undefined)).toBe("default")
+    expect(resolveProjectMode(PROJECT_ONLINE_RUN_MARKER)).toBe("online")
+    expect(withProjectMode("existing", "online")).toContain(PROJECT_ONLINE_RUN_MARKER)
+
+    const result = await maybeEnhanceProjectMessage({
+      message: {
+        agent: "build",
+        model: {
+          providerID: "anthropic",
+          modelID: "claude-sonnet-4-5",
+        },
+        system: withProjectMode("existing system note", "online"),
+      },
+      parts: [
+        {
+          type: "text",
+          text: "创建一个 Vue 单页应用",
+        },
+      ],
+      directory: "/tmp/project",
+      agentMode: "primary",
+      planner: async () => fallbackPlan("创建一个 Vue 单页应用"),
+    })
+
+    expect(result?.mode).toBe("online")
+    expect(result?.system).toContain(PROJECT_ONLINE_RUN_MARKER)
+    expect(result?.system).toContain("Online Build And Run rules:")
+    expect(result?.system).toContain("scripts/dev.sh")
   })
 
   test("uses generic game guidance for non-snake games", () => {

@@ -2,6 +2,7 @@ import type { Message, Session } from "@opencode-ai/sdk/v2/client"
 import { showToast } from "@opencode-ai/ui/toast"
 import { base64Encode } from "@opencode-ai/util/encode"
 import { Binary } from "@opencode-ai/util/binary"
+import { withProjectMode, type ProjectMode } from "@opencode-ai/util/project-mode"
 import { useNavigate, useParams } from "@solidjs/router"
 import type { Accessor } from "solid-js"
 import type { FileSelection } from "@/context/file"
@@ -33,6 +34,7 @@ export type FollowupDraft = {
   context: (ContextItem & { key: string })[]
   agent: string
   model: { providerID: string; modelID: string }
+  system?: string
   variant?: string
 }
 
@@ -155,6 +157,7 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
       model: input.draft.model,
       messageID,
       parts: requestParts,
+      system: input.draft.system,
       variant: input.draft.variant,
     })
     return true
@@ -182,6 +185,7 @@ type PromptSubmitInput = {
   newSessionWorktree?: Accessor<string | undefined>
   onNewSessionWorktreeReset?: () => void
   shouldQueue?: Accessor<boolean>
+  projectMode?: Accessor<ProjectMode>
   onQueue?: (draft: FollowupDraft) => void
   onAbort?: () => void
   onSubmit?: () => void
@@ -397,6 +401,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       context,
       agent,
       model,
+      system: isNewSession ? withProjectMode(undefined, input.projectMode?.() ?? "default") : undefined,
       variant,
     }
 

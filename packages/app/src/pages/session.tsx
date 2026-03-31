@@ -49,7 +49,7 @@ import {
   shouldFocusTerminalOnKeyDown,
 } from "@/pages/session/helpers"
 import { MessageTimeline } from "@/pages/session/message-timeline"
-import { projectPathChain, shouldEnterProjectDirectory } from "@/pages/session/project-mode"
+import { projectPathChain, projectRoot, shouldEnterProjectDirectory } from "@/pages/session/project-mode"
 import { type DiffStyle, SessionReviewTab, type SessionReviewTabProps } from "@/pages/session/review-tab"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { syncSessionModel } from "@/pages/session/session-model-helpers"
@@ -58,12 +58,18 @@ import { TerminalPanel } from "@/pages/session/terminal-panel"
 import { useSessionCommands } from "@/pages/session/use-session-commands"
 import { useSessionHashScroll } from "@/pages/session/use-session-hash-scroll"
 import { Identifier } from "@/utils/id"
+import { isFixedWorkspace } from "@/utils/fixed-workspace"
 import { extractPromptFromParts } from "@/utils/prompt"
 import { same } from "@/utils/same"
 import { formatServerError } from "@/utils/server-errors"
 
 const emptyUserMessages: UserMessage[] = []
 const emptyFollowups: (FollowupDraft & { id: string })[] = []
+const errorName = (err: unknown) => {
+  if (!err || typeof err !== "object") return
+  if (!("name" in err)) return
+  return typeof err.name === "string" ? err.name : undefined
+}
 
 type ChangeMode = "git" | "branch" | "session" | "turn"
 type VcsMode = "git" | "branch"
@@ -404,6 +410,17 @@ export default function Page() {
     return `calc(100% - ${layout.fileTree.width()}px)`
   })
   const centered = createMemo(() => isDesktop() && !desktopReviewOpen())
+  const fixed = createMemo(() => isFixedWorkspace(sdk.directory))
+  const fixedHref = createMemo(() => `/${base64Encode(sdk.directory)}/session`)
+
+  const recover = (id: string, err: unknown) => {
+    if (!fixed()) return false
+    if (params.id !== id) return true
+    if (errorName(err) !== "NotFoundError") return false
+    sync.session.evict(id)
+    navigate(fixedHref(), { replace: true })
+    return true
+  }
 
   function normalizeTab(tab: string) {
     if (!tab.startsWith("file://")) return tab
@@ -427,15 +444,28 @@ export default function Page() {
   }
 
   const info = createMemo(() => (params.id ? sync.session.get(params.id) : undefined))
+  const project = createMemo(() => projectRoot(sdk.directory, info()?.directory))
   createEffect(
     on(
-      () => [params.id, info()?.directory, sync.data.session_status[params.id ?? ""]?.type] as const,
-      ([id, directory, status]) => {
+      () => [params.id, info()?.directory, sync.data.session_status[params.id ?? ""]?.type, project()] as const,
+      ([id, directory, status, project]) => {
         if (!id || !directory) return
         if (directory === sdk.directory) return
+        if (fixed() && !project) {
+          sync.session.evict(id)
+          navigate(fixedHref(), { replace: true })
+          return
+        }
 
-        layout.fileTree.setTab("all")
+        layout.fileTree.setTab(project ? "project" : "all")
         if (isDesktop()) layout.fileTree.open()
+
+        if (project) {
+          for (const item of projectPathChain(sdk.directory, directory)) {
+            file.tree.expand(item)
+          }
+          return
+        }
 
         const busy = status !== "idle"
         if (!shouldEnterProjectDirectory(sdk.directory, directory, busy)) {
@@ -851,7 +881,10 @@ export default function Page() {
       const todos = untrack(() => sync.data.todo[id] !== undefined || globalSync.data.session_todo[id] !== undefined)
 
       untrack(() => {
-        void sync.session.sync(id)
+        void sync.session.sync(id).catch((err) => {
+          if (recover(id, err)) return
+          console.debug("[session] failed to sync session", { id, err })
+        })
       })
 
       refreshFrame = requestAnimationFrame(() => {
@@ -860,8 +893,16 @@ export default function Page() {
           refreshTimer = undefined
           if (params.id !== id) return
           untrack(() => {
-            if (stale) void sync.session.sync(id, { force: true })
-            void sync.session.todo(id, todos ? { force: true } : undefined)
+            if (stale) {
+              void sync.session.sync(id, { force: true }).catch((err) => {
+                if (recover(id, err)) return
+                console.debug("[session] failed to refresh session", { id, err })
+              })
+            }
+            void sync.session.todo(id, todos ? { force: true } : undefined).catch((err) => {
+              if (recover(id, err)) return
+              console.debug("[session] failed to sync todos", { id, err })
+            })
           })
         }, 0)
       })
@@ -2043,6 +2084,7 @@ export default function Page() {
           diffs={reviewDiffs}
           diffsReady={reviewReady}
           empty={reviewEmptyText}
+          project={project}
           hasReview={hasReview}
           reviewCount={reviewCount}
           reviewPanel={reviewPanel}

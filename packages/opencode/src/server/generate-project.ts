@@ -1,11 +1,11 @@
 import fs from "fs/promises"
 import os from "os"
 import path from "path"
-import { inferTemplate } from "@/plugin/prompt-enhancer"
+import { inferTemplate } from "@/project/prompt-enhancer"
 import { Instance } from "@/project/instance"
 import { InstanceBootstrap } from "@/project/bootstrap"
 import { Permission } from "@/permission"
-import { getDefaultProjectOutputDirectory } from "@/session/directory"
+import { getDefaultProjectOutputDirectory, getSessionDirectory } from "@/session/directory"
 import { Session } from "@/session"
 import { MessageV2 } from "@/session/message-v2"
 import { SessionPrompt } from "@/session/prompt"
@@ -199,7 +199,7 @@ export async function generateProjectFiles(prompt: string) {
   const normalizedPrompt = prompt.trim()
   const template = inferTemplate(normalizedPrompt)
   const workspaceRoot = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-generate-"))
-  const expectedRoot = getDefaultProjectOutputDirectory(workspaceRoot)
+  const initialRoot = getDefaultProjectOutputDirectory(workspaceRoot)
 
   try {
     return await Instance.provide({
@@ -207,11 +207,11 @@ export async function generateProjectFiles(prompt: string) {
       init: InstanceBootstrap,
       fn: async () => {
         try {
-          await fs.mkdir(expectedRoot, { recursive: true })
+          await fs.mkdir(initialRoot, { recursive: true })
 
           const session = await Session.createNext({
             title: `Generate project - ${normalizedPrompt.slice(0, 80)}`,
-            directory: expectedRoot,
+            directory: initialRoot,
             permission: NON_INTERACTIVE_GENERATION_PERMISSIONS,
           })
 
@@ -224,18 +224,19 @@ export async function generateProjectFiles(prompt: string) {
             })
 
             for (let attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt++) {
-              let files = await collectGeneratedProjectFiles(expectedRoot)
+              const root = await getSessionDirectory(session.id)
+              let files = await collectGeneratedProjectFiles(root)
 
               if (files.length === 0) {
                 const fallback = await fallbackGeneratedFilesFromMessages(session.id)
                 if (fallback?.files?.length) {
-                  await materializeGeneratedFiles(expectedRoot, fallback.files)
-                  files = await collectGeneratedProjectFiles(expectedRoot)
+                  await materializeGeneratedFiles(root, fallback.files)
+                  files = await collectGeneratedProjectFiles(root)
                 } else {
                   const suffix = fallback?.text
                     ? ` Last assistant output: ${fallback.text.replace(/\s+/g, " ").slice(0, 800)}`
                     : ""
-                  throw new Error(`No project files were generated in ${expectedRoot}.${suffix}`)
+                  throw new Error(`No project files were generated in ${root}.${suffix}`)
                 }
               }
 

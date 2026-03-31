@@ -11,6 +11,7 @@ import { decode64 } from "@/utils/base64"
 import { same } from "@/utils/same"
 import { createScrollPersistence, type SessionScroll } from "./layout-scroll"
 import { createPathHelpers } from "./file/path"
+import { isFixedWorkspace } from "@/utils/fixed-workspace"
 
 const AVATAR_COLOR_KEYS = ["pink", "mint", "orange", "purple", "cyan", "lime"] as const
 const DEFAULT_PANEL_WIDTH = 344
@@ -159,7 +160,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
       const fileTree = value.fileTree
       const migratedFileTree = (() => {
         if (!isRecord(fileTree)) return fileTree
-        if (fileTree.tab === "changes" || fileTree.tab === "all") return fileTree
+        if (fileTree.tab === "changes" || fileTree.tab === "all" || fileTree.tab === "project") return fileTree
 
         const width = typeof fileTree.width === "number" ? fileTree.width : DEFAULT_PANEL_WIDTH
         return {
@@ -245,7 +246,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
         fileTree: {
           opened: true,
           width: DEFAULT_PANEL_WIDTH,
-          tab: "changes" as "changes" | "all",
+          tab: "changes" as "changes" | "all" | "project",
         },
         session: {
           width: DEFAULT_SESSION_WIDTH,
@@ -377,6 +378,10 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
 
     const [colors, setColors] = createStore<Record<string, AvatarColorKey>>({})
     const colorRequested = new Map<string, AvatarColorKey>()
+    const fixed = createMemo(() => {
+      const dir = globalSync.data.path.directory
+      return isFixedWorkspace(dir) ? dir : undefined
+    })
 
     function pickAvailableColor(used: Set<string>): AvatarColorKey {
       const available = AVATAR_COLOR_KEYS.filter((c) => !used.has(c))
@@ -458,6 +463,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
     }
 
     createEffect(() => {
+      if (fixed()) return
       const projects = server.projects.list()
       const seen = new Set(projects.map((project) => project.worktree))
 
@@ -476,6 +482,28 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
           if (project.expanded) server.projects.expand(root)
         }
       })
+    })
+
+    createEffect(() => {
+      const dir = fixed()
+      if (!dir) return
+
+      const list = server.projects.list()
+      const has = list.some((item) => item.worktree === dir)
+      const expanded = list.find((item) => item.worktree === dir)?.expanded ?? false
+      const last = server.projects.last()
+
+      batch(() => {
+        for (const item of list) {
+          if (item.worktree === dir) continue
+          server.projects.close(item.worktree)
+        }
+        if (!has) server.projects.open(dir)
+        if (has && !expanded) server.projects.expand(dir)
+        if (last !== dir) server.projects.touch(dir)
+      })
+
+      globalSync.project.loadSessions(dir)
     })
 
     const enriched = createMemo(() => server.projects.list().map(enrich))
@@ -566,12 +594,14 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
       projects: {
         list,
         open(directory: string) {
-          const root = rootFor(directory)
-          if (server.projects.list().find((x) => x.worktree === root)) return
-          globalSync.project.loadSessions(root)
-          server.projects.open(root)
+          const dir = fixed()
+          const next = dir ?? rootFor(directory)
+          if (server.projects.list().find((x) => x.worktree === next)) return
+          globalSync.project.loadSessions(next)
+          server.projects.open(next)
         },
         close(directory: string) {
+          if (fixed() === directory) return
           server.projects.close(directory)
         },
         expand(directory: string) {
@@ -630,7 +660,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
         opened: createMemo(() => store.fileTree?.opened ?? true),
         width: createMemo(() => store.fileTree?.width ?? DEFAULT_PANEL_WIDTH),
         tab: createMemo(() => store.fileTree?.tab ?? "changes"),
-        setTab(tab: "changes" | "all") {
+        setTab(tab: "changes" | "all" | "project") {
           if (!store.fileTree) {
             setStore("fileTree", { opened: true, width: DEFAULT_PANEL_WIDTH, tab })
             return

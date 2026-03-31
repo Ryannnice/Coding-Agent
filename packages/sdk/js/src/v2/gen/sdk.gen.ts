@@ -40,6 +40,8 @@ import type {
   FindSymbolsResponses,
   FindTextResponses,
   FormatterStatusResponses,
+  GenerateProjectErrors,
+  GenerateProjectResponses,
   GlobalConfigGetResponses,
   GlobalConfigUpdateErrors,
   GlobalConfigUpdateResponses,
@@ -229,6 +231,32 @@ class HeyApiRegistry<T> {
 
   set(value: T, key?: string): void {
     this.instances.set(key ?? this.defaultKey, value)
+  }
+}
+
+export class Generate extends HeyApiClient {
+  /**
+   * Generate project files
+   *
+   * Generate a complete project from a single prompt and return it as a structured files manifest.
+   */
+  public project<ThrowOnError extends boolean = false>(
+    parameters?: {
+      prompt?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "body", key: "prompt" }] }])
+    return (options?.client ?? this.client).post<GenerateProjectResponses, GenerateProjectErrors, ThrowOnError>({
+      url: "/generate",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
   }
 }
 
@@ -3983,6 +4011,11 @@ export class OpencodeClient extends HeyApiClient {
   constructor(args?: { client?: Client; key?: string }) {
     super(args)
     OpencodeClient.__registry.set(this, args?.key)
+  }
+
+  private _generate?: Generate
+  get generate(): Generate {
+    return (this._generate ??= new Generate({ client: this.client }))
   }
 
   private _global?: Global

@@ -339,15 +339,15 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   const suggest = createMemo(() => !hasUserPrompt())
   const onlineText = createMemo(() => {
     const locale = language.locale()
-    if (locale === "zh") return "在线构建运行"
-    if (locale === "zht") return "在線建置執行"
-    return "Run Online"
+    if (locale === "zh") return "构建项目"
+    if (locale === "zht") return "建置專案"
+    return "Build Project"
   })
   const onlineTip = createMemo(() => {
     const locale = language.locale()
-    if (locale === "zh") return "在线构建并在线运行模式"
-    if (locale === "zht") return "在線建置並在線執行模式"
-    return "Online build and run mode"
+    if (locale === "zh") return "构建项目模式，首条消息会在 TEST/<session-id> 中生成独立项目"
+    if (locale === "zht") return "建置專案模式，首條訊息會在 TEST/<session-id> 中生成獨立專案"
+    return "Build project mode. The first message creates an isolated project in TEST/<session-id>"
   })
 
   const placeholder = createMemo(() =>

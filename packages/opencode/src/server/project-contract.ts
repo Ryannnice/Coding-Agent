@@ -1,7 +1,5 @@
 // 检查 AI 生成的项目文件是否符合OSS/FC在线运行的模板规范：
-
-
-import type { ProjectTemplate } from "@/plugin/prompt-enhancer"
+import type { ProjectTemplate } from "@/project/prompt-enhancer"
 
 export type ProjectFile = {
   path: string
@@ -121,6 +119,7 @@ export function validateProjectContract(files: ProjectFile[], template: ProjectT
       "scripts/prepare.sh",
       "scripts/build.sh",
       "scripts/start.sh",
+      "scripts/dev.sh",
     ]) {
       if (!fileMap.has(required)) issues.push(`Missing required file for base-python39: ${required}`)
     }
@@ -151,7 +150,7 @@ export function validateProjectContract(files: ProjectFile[], template: ProjectT
     return issues
   }
 
-  for (const required of ["package.json", "scripts/prepare.sh", "scripts/build.sh", "scripts/start.sh"]) {
+  for (const required of ["package.json", "scripts/prepare.sh", "scripts/build.sh", "scripts/start.sh", "scripts/dev.sh"]) {
     if (!fileMap.has(required)) issues.push(`Missing required file for base-node18: ${required}`)
   }
 

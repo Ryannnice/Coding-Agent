@@ -17,12 +17,28 @@ import { Log } from "../../util/log"
 import { Permission } from "@/permission"
 import { PermissionID } from "@/permission/schema"
 import { ModelID, ProviderID } from "@/provider/schema"
+import { Instance } from "@/project/instance"
+import { NotFoundError } from "@/storage/db"
 import { errors } from "../error"
 import { lazy } from "../../util/lazy"
 import { Bus } from "../../bus"
 import { NamedError } from "@opencode-ai/util/error"
+import { Filesystem } from "@/util/filesystem"
 
 const log = Log.create({ service: "server" })
+const fixed = () => process.env.OPENCODE_WEB_SINGLE_WORKSPACE === "1"
+
+function inside(dir: string, root = Instance.directory) {
+  const base = Filesystem.resolve(root)
+  return Filesystem.contains(base, Filesystem.resolve(dir))
+}
+
+async function own(sessionID: SessionID) {
+  if (!fixed()) return
+  const session = await Session.get(sessionID)
+  if (inside(session.directory)) return
+  throw new NotFoundError({ message: `Session not found: ${sessionID}` })
+}
 
 export const SessionRoutes = lazy(() =>
   new Hono()
@@ -58,14 +74,16 @@ export const SessionRoutes = lazy(() =>
       ),
       async (c) => {
         const query = c.req.valid("query")
+        const dir = fixed() ? query.directory : undefined
         const sessions: Session.Info[] = []
         for await (const session of Session.list({
-          directory: query.directory,
+          directory: fixed() ? undefined : query.directory,
           roots: query.roots,
           start: query.start,
           search: query.search,
           limit: query.limit,
         })) {
+          if (fixed() && !inside(session.directory, dir ?? Instance.directory)) continue
           sessions.push(session)
         }
         return c.json(sessions)
@@ -94,6 +112,14 @@ export const SessionRoutes = lazy(() =>
         return c.json(Object.fromEntries(result))
       },
     )
+    .use("/:sessionID", async (c, next) => {
+      await own(SessionID.make(c.req.param("sessionID")))
+      return next()
+    })
+    .use("/:sessionID/*", async (c, next) => {
+      await own(SessionID.make(c.req.param("sessionID")))
+      return next()
+    })
     .get(
       "/:sessionID",
       describeRoute({

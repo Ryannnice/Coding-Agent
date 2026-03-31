@@ -1,11 +1,14 @@
 import { Show, createMemo } from "solid-js"
+import { createStore } from "solid-js/store"
 import { DateTime } from "luxon"
 import { useSync } from "@/context/sync"
 import { useSDK } from "@/context/sdk"
 import { useLanguage } from "@/context/language"
+import { Persist, persisted } from "@/utils/persist"
 import { Icon } from "@opencode-ai/ui/icon"
 import { Mark } from "@opencode-ai/ui/logo"
 import { getDirectory, getFilename } from "@opencode-ai/util/path"
+import { onlineCopy } from "./session-new-view-copy"
 
 const MAIN_WORKTREE = "main"
 const CREATE_WORKTREE = "create"
@@ -19,6 +22,12 @@ export function NewSessionView(props: NewSessionViewProps) {
   const sync = useSync()
   const sdk = useSDK()
   const language = useLanguage()
+  const [prefs] = persisted(
+    Persist.workspace(sdk.directory, "project-mode", ["project-mode.v1"]),
+    createStore({
+      online: false,
+    }),
+  )
 
   const sandboxes = createMemo(() => sync.project?.sandboxes ?? [])
   const options = createMemo(() => [MAIN_WORKTREE, ...sandboxes(), CREATE_WORKTREE])
@@ -33,8 +42,12 @@ export function NewSessionView(props: NewSessionViewProps) {
     if (!project) return false
     return sdk.directory !== project.worktree
   })
+  const online = createMemo(() => prefs.online)
+  const copy = createMemo(() => onlineCopy(language.locale()))
 
   const label = (value: string) => {
+    if (online()) return copy().label
+
     if (value === MAIN_WORKTREE) {
       if (isWorktree()) return language.t("session.new.worktree.main")
       const branch = sync.data.vcs?.branch
@@ -64,11 +77,18 @@ export function NewSessionView(props: NewSessionViewProps) {
               </div>
             </div>
             <div class="flex items-start justify-center gap-1.5 min-h-5">
-              <Icon name="branch" size="small" class="mt-0.5 shrink-0" />
+              <Icon name={online() ? "folder" : "branch"} size="small" class="mt-0.5 shrink-0" />
               <div class="text-12-medium text-text-weak select-text leading-5 min-w-0 max-w-160 break-words text-center">
                 {label(current())}
               </div>
             </div>
+            <Show when={online()}>
+              <div class="flex items-start justify-center gap-3 min-h-5">
+                <div class="text-12-medium text-text-weak leading-5 min-w-0 max-w-160 break-words text-center">
+                  {copy().detail}
+                </div>
+              </div>
+            </Show>
             <Show when={sync.project}>
               {(project) => (
                 <div class="flex items-start justify-center gap-3 min-h-5">

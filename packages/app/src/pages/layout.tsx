@@ -86,6 +86,7 @@ import {
 } from "./layout/sidebar-workspace"
 import { ProjectDragOverlay, SortableProject, type ProjectSidebarContext } from "./layout/sidebar-project"
 import { SidebarContent } from "./layout/sidebar-shell"
+import { isFixedWorkspace } from "@/utils/fixed-workspace"
 
 export default function Layout(props: ParentProps) {
   const [store, setStore, , ready] = persisted(
@@ -135,6 +136,10 @@ export default function Layout(props: ParentProps) {
       slug,
       dir: globalSync.peek(dir, { bootstrap: false })[0].path.directory || dir,
     }
+  })
+  const fixed = createMemo(() => {
+    const dir = globalSync.data.path.directory
+    return isFixedWorkspace(dir) ? dir : undefined
   })
   const availableThemeEntries = createMemo(() => theme.ids().map((id) => [id, theme.themes()[id]] as const))
   const colorSchemeOrder: ColorScheme[] = ["system", "light", "dark"]
@@ -1030,13 +1035,6 @@ export default function Layout(props: ParentProps) {
         onSelect: () => layout.sidebar.toggle(),
       },
       {
-        id: "project.open",
-        title: language.t("command.project.open"),
-        category: language.t("command.category.project"),
-        keybind: "mod+o",
-        onSelect: () => chooseProject(),
-      },
-      {
         id: "project.previous",
         title: language.t("command.project.previous"),
         category: language.t("command.category.project"),
@@ -1151,6 +1149,16 @@ export default function Layout(props: ParentProps) {
         onSelect: () => cycleTheme(1),
       },
     ]
+
+    if (!fixed()) {
+      commands.splice(1, 0, {
+        id: "project.open",
+        title: language.t("command.project.open"),
+        category: language.t("command.category.project"),
+        keybind: "mod+o",
+        onSelect: () => chooseProject(),
+      })
+    }
 
     for (const [id] of availableThemeEntries()) {
       commands.push({
@@ -1363,8 +1371,9 @@ export default function Layout(props: ParentProps) {
   }
 
   function openProject(directory: string, navigate = true) {
-    layout.projects.open(directory)
-    if (navigate) return navigateToProject(directory)
+    const next = fixed() ?? directory
+    layout.projects.open(next)
+    if (navigate) return navigateToProject(next)
   }
 
   const handleDeepLinks = (urls: string[]) => {
@@ -1375,8 +1384,9 @@ export default function Layout(props: ParentProps) {
     }
 
     for (const link of collectNewSessionDeepLinks(urls)) {
-      openProject(link.directory, false)
-      const slug = base64Encode(link.directory)
+      const dir = fixed() ?? link.directory
+      openProject(dir, false)
+      const slug = base64Encode(dir)
       if (link.prompt) {
         setSessionHandoff(slug, { prompt: link.prompt })
       }
@@ -1418,6 +1428,7 @@ export default function Layout(props: ParentProps) {
   }
 
   function closeProject(directory: string) {
+    if (fixed() && workspaceKey(directory) === workspaceKey(fixed()!)) return
     const list = layout.projects.list()
     const key = workspaceKey(directory)
     const index = list.findIndex((x) => workspaceKey(x.worktree) === key)
@@ -1462,6 +1473,7 @@ export default function Layout(props: ParentProps) {
   }
 
   async function chooseProject() {
+    if (fixed()) return
     function resolve(result: string | string[] | null) {
       if (Array.isArray(result)) {
         for (const directory of result) {
@@ -2114,9 +2126,11 @@ export default function Layout(props: ParentProps) {
                       {language.t("sidebar.empty.description")}
                     </div>
                   </div>
-                  <Button size="large" icon="folder-add-left" onClick={chooseProject}>
-                    {language.t("command.project.open")}
-                  </Button>
+                  <Show when={!fixed()}>
+                    <Button size="large" icon="folder-add-left" onClick={chooseProject}>
+                      {language.t("command.project.open")}
+                    </Button>
+                  </Show>
                 </div>
               </div>
             </Show>
@@ -2359,6 +2373,7 @@ export default function Layout(props: ParentProps) {
       renderProject={(project) => (
         <SortableProject ctx={projectSidebarCtx} project={project} sortNow={sortNow} mobile={mobile} />
       )}
+      showOpenProject={!fixed()}
       handleDragStart={handleDragStart}
       handleDragEnd={handleDragEnd}
       handleDragOver={handleDragOver}

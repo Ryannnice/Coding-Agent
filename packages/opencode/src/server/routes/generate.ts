@@ -1,7 +1,6 @@
 import { Hono } from "hono"
 import { describeRoute, resolver, validator } from "hono-openapi"
 import z from "zod"
-import { isProjectGenerationIntent } from "@/plugin/prompt-enhancer"
 import { lazy } from "@/util/lazy"
 import { generateProjectFiles } from "../generate-project"
 import { errors } from "../error"
@@ -44,17 +43,6 @@ export const GenerateRoutes = lazy(() =>
       async (c) => {
         const body = c.req.valid("json")
         const prompt = body.prompt.trim()
-
-        if (!isProjectGenerationIntent(prompt)) {
-          return c.json(
-            {
-              name: "InvalidGeneratePrompt",
-              message: "The /generate endpoint only accepts prompts that request a full project generation.",
-            },
-            400,
-          )
-        }
-
         return c.json(await generateProjectFiles(prompt))
       },
     ),

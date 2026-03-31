@@ -2,13 +2,16 @@ export function normalizeProjectPath(input: string) {
   return input.replaceAll("\\", "/").replace(/\/+$/, "")
 }
 
-export function projectPathChain(root: string, target: string) {
+export function projectRoot(root: string, target?: string) {
   const base = normalizeProjectPath(root)
-  const next = normalizeProjectPath(target)
-  if (!base || !next || base === next) return []
-  if (!next.startsWith(base + "/")) return []
+  const next = normalizeProjectPath(target ?? "")
+  if (!base || !next || base === next) return
+  if (!next.startsWith(base + "/")) return
+  return next.slice(base.length + 1)
+}
 
-  const relative = next.slice(base.length + 1)
+export function projectPathChain(root: string, target: string) {
+  const relative = projectRoot(root, target)
   if (!relative) return []
 
   const parts = relative.split("/").filter(Boolean)

@@ -16,6 +16,7 @@ describe("server.project-contract", () => {
     expect(issues).toContain("Missing required file for base-node18: scripts/prepare.sh")
     expect(issues).toContain("Missing required file for base-node18: scripts/build.sh")
     expect(issues).toContain("Missing required file for base-node18: scripts/start.sh")
+    expect(issues).toContain("Missing required file for base-node18: scripts/dev.sh")
   })
 
   test("accepts minimal valid base-node18 project manifests", () => {
@@ -55,6 +56,11 @@ describe("server.project-contract", () => {
           path: "scripts/start.sh",
           content:
             '#!/bin/bash\nWORKSPACE="${WORKSPACE:-/workspace}"\nHOST="${HOST:-0.0.0.0}"\nPORT="${PORT:-9000}"\ncd "$WORKSPACE"\nnpx vite preview --host "$HOST" --port "$PORT" --strictPort\n',
+        },
+        {
+          path: "scripts/dev.sh",
+          content:
+            '#!/bin/bash\nWORKSPACE="${WORKSPACE:-/workspace}"\nHOST="${HOST:-0.0.0.0}"\nPORT="${PORT:-9000}"\ncd "$WORKSPACE"\nnpx vite --host "$HOST" --port "$PORT" --strictPort\n',
         },
         {
           path: "index.html",

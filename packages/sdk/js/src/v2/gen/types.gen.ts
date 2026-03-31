@@ -4,6 +4,14 @@ export type ClientOptions = {
   baseUrl: `${string}://${string}` | (string & {})
 }
 
+export type BadRequestError = {
+  data: unknown
+  errors: Array<{
+    [key: string]: unknown
+  }>
+  success: false
+}
+
 export type EventInstallationUpdated = {
   type: "installation.updated"
   properties: {
@@ -1611,14 +1619,6 @@ export type Config = {
   }
 }
 
-export type BadRequestError = {
-  data: unknown
-  errors: Array<{
-    [key: string]: unknown
-  }>
-  success: false
-}
-
 export type OAuth = {
   type: "oauth"
   refresh: string
@@ -2043,6 +2043,47 @@ export type FormatterStatus = {
   extensions: Array<string>
   enabled: boolean
 }
+
+export type GenerateProjectData = {
+  body?: {
+    /**
+     * The user prompt describing the project to generate
+     */
+    prompt: string
+  }
+  path?: never
+  query?: never
+  url: "/generate"
+}
+
+export type GenerateProjectErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type GenerateProjectError = GenerateProjectErrors[keyof GenerateProjectErrors]
+
+export type GenerateProjectResponses = {
+  /**
+   * Generated project files
+   */
+  200: {
+    files: Array<{
+      /**
+       * Relative POSIX file path
+       */
+      path: string
+      /**
+       * UTF-8 file content
+       */
+      content: string
+    }>
+  }
+}
+
+export type GenerateProjectResponse = GenerateProjectResponses[keyof GenerateProjectResponses]
 
 export type GlobalHealthData = {
   body?: never

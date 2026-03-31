@@ -1,10 +1,11 @@
 import path from "path"
+import { PROJECT_WORKSPACE_DIR, isProjectWorkspace } from "@opencode-ai/util/project-workspace"
 import { Instance } from "@/project/instance"
 import { Filesystem } from "@/util/filesystem"
 import { Session } from "."
 import type { SessionID } from "./schema"
 
-export const DEFAULT_PROJECT_OUTPUT_DIRECTORY = ".opencode/generated"
+export const DEFAULT_PROJECT_OUTPUT_DIRECTORY = PROJECT_WORKSPACE_DIR
 
 function sanitizeProjectOutputName(input: string) {
   const value = input.trim().replaceAll("\\", "-").replaceAll("/", "-")
@@ -13,7 +14,8 @@ function sanitizeProjectOutputName(input: string) {
 }
 
 export function getDefaultProjectOutputDirectory(directory: string, suffix?: string) {
-  const root = path.join(directory, DEFAULT_PROJECT_OUTPUT_DIRECTORY)
+  const base = Filesystem.resolve(directory)
+  const root = isProjectWorkspace(base) ? base : path.join(base, DEFAULT_PROJECT_OUTPUT_DIRECTORY)
   if (!suffix) return Filesystem.resolve(path.join(root, "project"))
   return Filesystem.resolve(path.join(root, sanitizeProjectOutputName(suffix)))
 }

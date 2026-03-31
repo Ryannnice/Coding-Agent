@@ -9,7 +9,7 @@ import {
   maybeEnhanceProjectMessage,
   resolveProjectMode,
   withProjectMode,
-} from "../../src/plugin/prompt-enhancer"
+} from "../../src/project/prompt-enhancer"
 
 describe("plugin.prompt-enhancer", () => {
   test("detects simple Chinese project generation prompts", () => {
@@ -148,6 +148,36 @@ describe("plugin.prompt-enhancer", () => {
     expect(result?.system).toContain(PROJECT_ONLINE_RUN_MARKER)
     expect(result?.system).toContain("Online Build And Run rules:")
     expect(result?.system).toContain("scripts/dev.sh")
+  })
+
+  test("treats online mode first prompts as project workspace generation even when the prompt is not caught by intent heuristics", async () => {
+    const result = await maybeEnhanceProjectMessage({
+      message: {
+        agent: "build",
+        model: {
+          providerID: "anthropic",
+          modelID: "claude-sonnet-4-5",
+        },
+        system: withProjectMode("existing system note", "online"),
+      },
+      parts: [
+        {
+          type: "text",
+          text: "做个用户管理系统",
+        },
+      ],
+      directory: "/tmp/project",
+      sessionID: "session_789",
+      agentMode: "primary",
+      planner: async () => fallbackPlan("做个用户管理系统"),
+    })
+
+    expect(isProjectGenerationIntent("做个用户管理系统")).toBe(false)
+    expect(result?.enhanced).toBe(true)
+    expect(result?.mode).toBe("online")
+    expect(result?.outputDirectory).toBe(getDefaultProjectOutputDirectory("/tmp/project", "session_789"))
+    expect(result?.system).toContain("Online Build And Run rules:")
+    expect(result?.system).toContain(`fixed project root: ${getDefaultProjectOutputDirectory("/tmp/project", "session_789")}`)
   })
 
   test("uses generic game guidance for non-snake games", () => {

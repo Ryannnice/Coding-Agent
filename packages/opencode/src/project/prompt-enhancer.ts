@@ -252,22 +252,21 @@ export function renderEnhancementSystem(input: {
 }) {
   const node18Rules = [
     "- Runtime is fixed to Node.js 18. Do not pick packages that require Node.js 20+.",
-    "- The project root must include package.json, scripts/prepare.sh, scripts/build.sh, and scripts/start.sh.",
-    "- Prefer also including scripts/dev.sh, src/, and index.html when building a browser app.",
+    "- The project root must include package.json, scripts/prepare.sh, scripts/build.sh, scripts/start.sh, and scripts/dev.sh.",
+    "- Include src/ and index.html when building a browser app.",
     '- Every .sh script must start with exactly: #!/bin/bash',
     '- Every script must support WORKSPACE="${WORKSPACE:-/workspace}", HOST="${HOST:-0.0.0.0}", and PORT="${PORT:-9000}".',
     '- Every script must begin by changing to the workspace: cd "$WORKSPACE"',
     "- scripts/prepare.sh should install dependencies and must work with npm install by default.",
     "- scripts/build.sh should run npm run build when a build step exists.",
     "- scripts/start.sh must start the production server and listen on HOST and PORT.",
-    "- If scripts/dev.sh exists, it must also listen on HOST and PORT.",
+    "- scripts/dev.sh must start the development server and listen on HOST and PORT.",
     "- The app must be reachable at http://127.0.0.1:${PORT}/ after startup.",
     "- Do not make package.json scripts recursively call themselves or bounce back to scripts/*.sh in a loop.",
   ]
 
   const pythonRules = [
-    "- The root must include app.py, requirements.txt, scripts/prepare.sh, scripts/build.sh, and scripts/start.sh.",
-    "- Prefer also including scripts/dev.sh.",
+    "- The root must include app.py, requirements.txt, scripts/prepare.sh, scripts/build.sh, scripts/start.sh, and scripts/dev.sh.",
     "- app.py must expose a FastAPI app variable named app.",
     "- scripts/prepare.sh must install dependencies from requirements.txt.",
     "- scripts/build.sh can be a no-op build step that prints a short message.",
@@ -286,7 +285,7 @@ export function renderEnhancementSystem(input: {
 
   const onlineRules = [
     "- Online build and run mode is enabled. The project must be ready for automated prepare/build/start execution without manual cleanup.",
-    "- Prefer including scripts/dev.sh so the project can also be iterated on in a live online workspace.",
+    "- scripts/dev.sh is required so the project can also be iterated on in a live online workspace.",
     "- Keep startup deterministic. Do not require interactive prompts, GUI apps, login flows, tunnel setup, or manual confirmations to boot the app.",
     "- Prefer self-contained static apps or single-process HTTP services that bind to HOST and PORT.",
     "- Avoid hidden environment assumptions beyond WORKSPACE, HOST, and PORT unless the user explicitly asks for them.",
@@ -402,7 +401,8 @@ export async function maybeEnhanceProjectMessage(input: {
   if (alreadyEnhanced(input.message.system)) return
 
   const prompt = extractPromptText(input.parts)
-  if (!isProjectGenerationIntent(prompt)) return
+  const mode = input.mode ?? resolveProjectMode(input.message.system)
+  if (mode !== "online" && !isProjectGenerationIntent(prompt)) return
 
   const planner = input.planner ?? planWithModel
   const planned = await planner(prompt, input.message.model).catch((error) => {
@@ -414,7 +414,6 @@ export async function maybeEnhanceProjectMessage(input: {
   })
   const plan = mergePlan(prompt, planned)
   const outputDirectory = input.directory ? getDefaultProjectOutputDirectory(input.directory, input.sessionID) : undefined
-  const mode = input.mode ?? resolveProjectMode(input.message.system)
 
   return {
     enhanced: true as const,

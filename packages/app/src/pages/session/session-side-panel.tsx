@@ -31,6 +31,7 @@ export function SessionSidePanel(props: {
   diffs: () => FileDiff[]
   diffsReady: () => boolean
   empty: () => string
+  project?: () => string | undefined
   hasReview: () => boolean
   reviewCount: () => number
   reviewPanel: () => JSX.Element
@@ -132,8 +133,14 @@ export function SessionSidePanel(props: {
   const activeFileTab = tabState.activeFileTab
 
   const fileTreeTab = () => layout.fileTree.tab()
+  const root = () => props.project?.()
 
   const setFileTreeTabValue = (value: string) => {
+    if (value === "project") {
+      if (!root()) return
+      layout.fileTree.setTab(value)
+      return
+    }
     if (value !== "changes" && value !== "all") return
     layout.fileTree.setTab(value)
   }
@@ -142,6 +149,14 @@ export function SessionSidePanel(props: {
     if (fileTreeTab() !== "changes") return
     layout.fileTree.setTab("all")
   }
+
+  const emptyProject = createMemo(() => {
+    const dir = root()
+    if (!dir) return false
+    const state = file.tree.state(dir)
+    if (!state?.loaded) return false
+    return file.tree.children(dir).length === 0
+  })
 
   const [store, setStore] = createStore({
     activeDraggable: undefined as string | undefined,
@@ -186,6 +201,12 @@ export function SessionSidePanel(props: {
           return acc
         }, {}),
     })
+  })
+
+  createEffect(() => {
+    if (fileTreeTab() !== "project") return
+    if (root()) return
+    layout.fileTree.setTab("all")
   })
 
   return (
@@ -370,6 +391,11 @@ export function SessionSidePanel(props: {
                       props.reviewCount() === 1 ? "session.review.change.one" : "session.review.change.other",
                     )}
                   </Tabs.Trigger>
+                  <Show when={root()}>
+                    <Tabs.Trigger value="project" class="flex-1" classes={{ button: "w-full" }}>
+                      Project
+                    </Tabs.Trigger>
+                  </Show>
                   <Tabs.Trigger value="all" class="flex-1" classes={{ button: "w-full" }}>
                     {language.t("session.files.all")}
                   </Tabs.Trigger>
@@ -400,6 +426,24 @@ export function SessionSidePanel(props: {
                     <Match when={true}>{empty(props.empty())}</Match>
                   </Switch>
                 </Tabs.Content>
+                <Show when={root()} keyed>
+                  {(dir) => (
+                    <Tabs.Content value="project" class="bg-background-stronger px-3 py-0">
+                      <div class="px-2 pt-3 pb-2 text-11-medium text-text-weaker truncate">{dir}</div>
+                      <Switch>
+                        <Match when={emptyProject()}>{empty(language.t("session.files.empty"))}</Match>
+                        <Match when={true}>
+                          <FileTree
+                            path={dir}
+                            modified={diffFiles()}
+                            kinds={kinds()}
+                            onFileClick={(node) => openTab(file.tab(node.path))}
+                          />
+                        </Match>
+                      </Switch>
+                    </Tabs.Content>
+                  )}
+                </Show>
                 <Tabs.Content value="all" class="bg-background-stronger px-3 py-0">
                   <Switch>
                     <Match when={nofiles()}>{empty(language.t("session.files.empty"))}</Match>
